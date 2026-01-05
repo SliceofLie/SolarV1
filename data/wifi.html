@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/common.css">
+  <link rel="stylesheet" href="styles/wifi.css">
+  <title>WiFi Settings - Solar Monitor</title>
+</head>
+<body>
+  <div id="header">
+    <h1>WiFi Settings</h1>
+    <a href="/" class="header-link">Monitor</a>
+    <a href="/history" class="header-link">History</a>
+    <a href="/calibration" class="header-link">Calibration</a>
+  </div>
+
+  <div class="wifi-container">
+    <div id="apModeNotice" class="ap-notice" style="display:none;">
+      <strong>⚠️ Configuration Mode</strong><br>
+      This device is in Access Point mode. Configure your WiFi credentials below to connect to your network.
+    </div>
+
+    <div class="status-box">
+      <h3 style="margin-top:0;">Current Connection</h3>
+      <div class="status-row">
+        <span class="status-label">Status:</span>
+        <span id="connectionStatus">Loading...</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">SSID:</span>
+        <span id="currentSSID">-</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">IP Address:</span>
+        <span id="currentIP">-</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Signal:</span>
+        <span id="currentRSSI">-</span>
+      </div>
+    </div>
+
+    <h3>Configure WiFi</h3>
+
+    <button id="scanButton" class="btn-secondary scan-button" onclick="scanNetworks()">
+      Scan for Networks
+    </button>
+
+    <div id="networkList" class="network-list"></div>
+
+    <form id="wifiForm">
+      <div class="form-group">
+        <label for="ssidInput">Network Name (SSID):</label>
+        <input type="text" id="ssidInput" required maxlength="32" placeholder="Enter network name">
+      </div>
+
+      <div class="form-group">
+        <label for="passwordInput">Password:</label>
+        <div class="password-wrapper">
+          <input type="password" id="passwordInput" maxlength="63" placeholder="Enter password (leave blank for open networks)">
+          <button type="button" class="toggle-password" onclick="togglePassword()" title="Show/hide password">Show</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="deviceInput">Device Name (mDNS):</label>
+        <input type="text" id="deviceInput" value="SolarV1" maxlength="31" placeholder="Device hostname">
+        <small>Access device at http://[devicename].local</small>
+      </div>
+
+      <div class="button-group">
+        <button type="submit" class="btn-primary">Save & Restart</button>
+        <button type="button" class="btn-danger" onclick="resetWiFi()">Factory Reset</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let scanInProgress = false;
+    let initialLoadComplete = false;
+
+    // Load current status
+    function loadStatus() {
+      fetch('/wifi-status')
+        .then(r => r.json())
+        .then(data => {
+          const statusEl = document.getElementById('connectionStatus');
+          statusEl.textContent = data.connected ? 'Connected ✓' : 'Disconnected ✗';
+          statusEl.className = 'status-value ' + (data.connected ? 'connected' : 'disconnected');
+
+          document.getElementById('currentSSID').textContent =
+            data.ssid || '(not configured)';
+          document.getElementById('currentIP').textContent = data.ip;
+          document.getElementById('currentRSSI').textContent =
+            data.connected ? data.rssi + ' dBm' : '-';
+
+          // Only populate input fields on initial load, not during auto-refresh
+          if (!initialLoadComplete) {
+            if (data.ssid) {
+              document.getElementById('ssidInput').value = data.ssid;
+            }
+            if (data.deviceName) {
+              document.getElementById('deviceInput').value = data.deviceName;
+            }
+            initialLoadComplete = true;
+          }
+        })
+        .catch(err => console.error('Failed to load status:', err));
+    }
+
+    // Scan for WiFi networks (with async polling to prevent WDT)
+    function scanNetworks() {
+      if (scanInProgress) return;
+
+      scanInProgress = true;
+      const btn = document.getElementById('scanButton');
+      btn.innerHTML = 'Scanning... <span class="spinner"></span>';
+      btn.disabled = true;
+
+      // Poll for scan results
+      function pollScan() {
+        fetch('/wifi-scan')
+          .then(r => r.json())
+          .then(data => {
+            // Check if scan is still in progress
+            if (data.status === 'scanning') {
+              // Wait 1 second and poll again
+              setTimeout(pollScan, 1000);
+              return;
+            }
+
+            // Scan complete, process results
+            const networks = data;
+            const list = document.getElementById('networkList');
+            list.innerHTML = '';
+            list.style.display = 'block';
+
+            if (networks.length === 0) {
+              list.innerHTML = '<div class="network-empty">No networks found</div>';
+            } else {
+              networks.forEach(net => {
+                const div = document.createElement('div');
+                div.className = 'network-item';
+                div.innerHTML = `
+                  <span class="network-name">${net.ssid} ${net.encryption ? '🔒' : ''}</span>
+                  <span class="signal-strength">${net.rssi} dBm</span>
+                `;
+                div.onclick = () => {
+                  document.querySelectorAll('.network-item').forEach(el =>
+                    el.classList.remove('selected'));
+                  div.classList.add('selected');
+                  document.getElementById('ssidInput').value = net.ssid;
+                  document.getElementById('passwordInput').focus();
+                };
+                list.appendChild(div);
+              });
+            }
+
+            btn.innerHTML = 'Scan for Networks';
+            btn.disabled = false;
+            scanInProgress = false;
+          })
+          .catch(err => {
+            console.error('Scan failed:', err);
+            alert('Scan failed. Please try again.');
+            btn.innerHTML = 'Scan for Networks';
+            btn.disabled = false;
+            scanInProgress = false;
+          });
+      }
+
+      // Start polling
+      pollScan();
+    }
+
+    // Save WiFi credentials
+    document.getElementById('wifiForm').onsubmit = function(e) {
+      e.preventDefault();
+
+      const ssid = document.getElementById('ssidInput').value;
+      const password = document.getElementById('passwordInput').value;
+      const deviceName = document.getElementById('deviceInput').value;
+
+      if (!ssid) {
+        alert('Please enter a network name (SSID)');
+        return;
+      }
+
+      if (confirm('Save these WiFi settings? The device will restart and connect to the new network.')) {
+        fetch('/wifi-set', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ssid, password, deviceName })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            alert('Settings saved! Device is restarting...\n\nOnce restarted, access the device at:\nhttp://' + deviceName + '.local');
+          } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          // Expected - device is restarting
+          alert('Settings saved! Device is restarting...\n\nOnce restarted, access the device at:\nhttp://' + deviceName + '.local');
+        });
+      }
+    };
+
+    // Factory reset
+    function resetWiFi() {
+      if (confirm('Clear all WiFi settings and restart? The device will use hardcoded credentials or AP mode.')) {
+        fetch('/wifi-reset', { method: 'POST' })
+          .then(() => {
+            alert('WiFi reset! Device is restarting...');
+          })
+          .catch(() => {
+            alert('WiFi reset! Device is restarting...');
+          });
+      }
+    }
+
+    // Toggle password visibility
+    function togglePassword() {
+      const passwordInput = document.getElementById('passwordInput');
+      const toggleBtn = document.querySelector('.toggle-password');
+
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = 'Hide';
+        toggleBtn.title = 'Hide password';
+      } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = 'Show';
+        toggleBtn.title = 'Show password';
+      }
+    }
+
+    // Show AP mode notice if accessing via AP IP
+    if (window.location.hostname === '192.168.4.1') {
+      document.getElementById('apModeNotice').style.display = 'block';
+    }
+
+    // Load status on page load
+    loadStatus();
+
+    // Refresh status every 5 seconds
+    setInterval(loadStatus, 5000);
+  </script>
+</body>
+</html>

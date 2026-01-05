@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/common.css">
+  <link rel="stylesheet" href="styles/monitor.css">
+  <script src="scripts/moment.min.js"></script>
+  <script src="scripts/Chart.js"></script>
+  <script src="scripts/hammer.js"></script>
+  <script src="scripts/chartjs-plugin-zoom.js"></script>
+</head>
+<body>
+  <div id="header">
+    <h1>Solar Power Monitor</h1>
+    <a href="/history" class="header-link">History</a>
+    <a href="/calibration" class="header-link">Calibration</a>
+    <a href="/wifi" class="header-link">WiFi</a>
+  </div>
+  <div id="config">
+    <div class="config-group">
+      <span>Max Samples:</span>
+      <input id="maxSamplesField" type="number" min="100" max="5000" value="500" step="50"/>
+    </div>
+    <div class="config-group">
+      <span>Update:</span>
+      <input id="periodField" type="number" min="100" max="10000" value="1000" step="100"/>
+      <span>ms</span>
+      <input id="periodRange" type="range" min="100" max="10000" value="1000" step="100"/>
+    </div>
+    <div class="config-group">
+      <button id="startPauseButton">Pause</button>
+      <button id="clearButton" disabled>Clear</button>
+    </div>
+  </div>
+  <div id="status">
+    <div class="status-item">
+      <div class="status-label">Battery</div>
+      <div class="status-value voltage" id="battVoltage">--.- V</div>
+      <div class="status-value current" id="battCurrent">--.- A</div>
+      <div class="status-value power" id="battPower">--.- W</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Load</div>
+      <div class="status-value voltage" id="loadVoltage">--.- V</div>
+      <div class="status-value current" id="loadCurrent">--.- A</div>
+      <div class="status-value power" id="loadPower">--.- W</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Solar</div>
+      <div class="status-value voltage" id="solarVoltage">--.- V</div>
+      <div class="status-value current" id="solarCurrent">--.- A</div>
+      <div class="status-value power" id="solarPower">--.- W</div>
+    </div>
+  </div>
+  <div id="charts">
+    <div class="chart-container"><canvas id="batteryChart"></canvas></div>
+    <div class="chart-container"><canvas id="loadChart"></canvas></div>
+    <div class="chart-container"><canvas id="solarChart"></canvas></div>
+  </div>
+  <script>
+    Chart.defaults.global.defaultFontColor='#ffffff';
+    function createChart(id,title,vc,cc,pc){
+      try {
+        return new Chart(document.getElementById(id),{type:'line',data:{datasets:[
+          {label:'Voltage (V)',backgroundColor:'rgba(0,0,0,0)',borderColor:vc,data:[],yAxisID:'voltage-axis',borderWidth:2,pointRadius:0,lineTension:0},
+          {label:'Current (A)',backgroundColor:'rgba(0,0,0,0)',borderColor:cc,data:[],yAxisID:'current-axis',borderWidth:2,pointRadius:0,lineTension:0},
+          {label:'Power (W)',backgroundColor:'rgba(0,0,0,0)',borderColor:pc,data:[],yAxisID:'power-axis',borderWidth:2,pointRadius:0,lineTension:0}
+        ]},options:{maintainAspectRatio:false,title:{display:true,text:title,fontSize:16,fontColor:'#4CAF50'},legend:{display:true,labels:{fontColor:'#fff'}},
+        scales:{xAxes:[{type:'time',time:{unit:'second',stepSize:10,tooltipFormat:'h:mm:ss A'},ticks:{minRotation:0,maxRotation:0,fontColor:'#999',callback:function(value,index,values){var d=new Date(value);if(d.getSeconds()===0){var h=d.getHours()%12||12;var m=d.getMinutes();var ap=d.getHours()>=12?'PM':'AM';return h+':'+(m<10?'0':'')+m+' '+ap;}else{var s=d.getSeconds();return ':'+(s<10?'0':'')+s;}}},gridLines:{color:'#3d3d3d'}}],
+        yAxes:[{id:'voltage-axis',type:'linear',position:'left',scaleLabel:{display:true,labelString:'Voltage (V)',fontColor:vc},ticks:{fontColor:vc,beginAtZero:false,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{color:'#3d3d3d'}},
+        {id:'current-axis',type:'linear',position:'left',scaleLabel:{display:true,labelString:'Current (A)',fontColor:cc},ticks:{fontColor:cc,beginAtZero:true,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{display:false}},
+        {id:'power-axis',type:'linear',position:'right',scaleLabel:{display:true,labelString:'Power (W)',fontColor:pc},ticks:{fontColor:pc,beginAtZero:true,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{display:false}}]},
+        animation:{duration:0},hover:{animationDuration:0},responsiveAnimationDuration:0,tooltips:{mode:'index',intersect:false,backgroundColor:'rgba(0,0,0,0.8)',titleFontColor:'#fff',bodyFontColor:'#fff',callbacks:{label:function(tooltipItem,data){var label=data.datasets[tooltipItem.datasetIndex].label||'';return label+': '+tooltipItem.yLabel.toFixed(3);}}}}});
+      } catch(e) {
+        console.error('Chart creation failed for '+id+':',e);
+        return null;
+      }
+    }
+    var batteryChart=createChart('batteryChart','Battery','#FFB74D','#4FC3F7','#81C784');
+    var solarChart=createChart('solarChart','Solar Panel','#FFA726','#29B6F6','#66BB6A');
+    var loadChart=createChart('loadChart','Load','#FF9800','#03A9F4','#4CAF50');
+    function updateChartData(chart,v,c,p,t,max){
+      if(!chart)return;
+      var timeMs=new Date(t*1000);
+      chart.data.datasets[0].data.push({x:timeMs,y:v});
+      chart.data.datasets[0].data.splice(0,chart.data.datasets[0].data.length-max);
+      chart.data.datasets[1].data.push({x:timeMs,y:c});
+      chart.data.datasets[1].data.splice(0,chart.data.datasets[1].data.length-max);
+      chart.data.datasets[2].data.push({x:timeMs,y:p});
+      chart.data.datasets[2].data.splice(0,chart.data.datasets[2].data.length-max);
+    }
+    var running=true;
+    var configDiv=document.getElementById("config");
+    var periodField=document.getElementById("periodField");
+    function fetchNewData(){
+      if(!running)return;
+      var fetchStartMs=Date.now();
+      var xmlHttp=new XMLHttpRequest();
+      xmlHttp.onload=function(){
+        var processingDurationMs;
+        if(xmlHttp.status!=200){
+          configDiv.classList.add('error');
+          console.log("GET ERROR: ["+xmlHttp.status+"] "+xmlHttp.responseText);
+          processingDurationMs=Date.now()-fetchStartMs;
+        }else{
+          configDiv.classList.remove('error');
+          var data=JSON.parse(xmlHttp.responseText);
+          var maxSamples=parseInt(document.getElementById("maxSamplesField").value);
+          var time=data.time/1000.0;
+          if(data.battery){
+            updateChartData(batteryChart,data.battery.voltage,data.battery.current,data.battery.power,time,maxSamples);
+            document.getElementById('battVoltage').textContent=data.battery.voltage.toFixed(3)+' V';
+            document.getElementById('battCurrent').textContent=data.battery.current.toFixed(3)+' A';
+            document.getElementById('battPower').textContent=data.battery.power.toFixed(3)+' W';
+          }
+          if(data.solar){
+            updateChartData(solarChart,data.solar.voltage,data.solar.current,data.solar.power,time,maxSamples);
+            document.getElementById('solarVoltage').textContent=data.solar.voltage.toFixed(3)+' V';
+            document.getElementById('solarCurrent').textContent=data.solar.current.toFixed(3)+' A';
+            document.getElementById('solarPower').textContent=data.solar.power.toFixed(3)+' W';
+          }
+          if(data.load){
+            updateChartData(loadChart,data.load.voltage,data.load.current,data.load.power,time,maxSamples);
+            document.getElementById('loadVoltage').textContent=data.load.voltage.toFixed(3)+' V';
+            document.getElementById('loadCurrent').textContent=data.load.current.toFixed(3)+' A';
+            document.getElementById('loadPower').textContent=data.load.power.toFixed(3)+' W';
+          }
+          if(batteryChart)batteryChart.update();
+          if(solarChart)solarChart.update();
+          if(loadChart)loadChart.update();
+          processingDurationMs=Date.now()-fetchStartMs;
+          periodField.style.backgroundColor=(processingDurationMs>parseInt(periodField.value))?"#773333":"#3d3d3d";
+        }
+        var waitingDelayMs=parseInt(periodField.value)-processingDurationMs;
+        if(running){window.setTimeout(fetchNewData,(waitingDelayMs>0)?waitingDelayMs:0);}
+      };
+      xmlHttp.onerror=function(e){
+        configDiv.classList.add('error');
+        console.log("ERROR: ["+xmlHttp.status+"] "+xmlHttp.responseText);
+        var waitingDelayMs=parseInt(periodField.value)-(Date.now()-fetchStartMs);
+        window.setTimeout(fetchNewData,(waitingDelayMs>0)?waitingDelayMs:0);
+      };
+      xmlHttp.open("GET","/data",true);
+      xmlHttp.send();
+    }
+    document.getElementById('periodRange').addEventListener('input',function(e){document.getElementById('periodField').value=e.target.value;});
+    document.getElementById('periodField').addEventListener('input',function(e){document.getElementById('periodRange').value=e.target.value;});
+    document.getElementById('startPauseButton').addEventListener('click',function(e){
+      running=!running;
+      if(running){
+        document.getElementById('startPauseButton').textContent="Pause";
+        document.getElementById('clearButton').disabled=true;
+        fetchNewData();
+      }else{
+        document.getElementById('startPauseButton').textContent="Start";
+        document.getElementById('clearButton').disabled=false;
+      }
+    });
+    document.getElementById('clearButton').addEventListener('click',function(e){
+      batteryChart.data.datasets.forEach(ds=>ds.data.length=0);
+      solarChart.data.datasets.forEach(ds=>ds.data.length=0);
+      loadChart.data.datasets.forEach(ds=>ds.data.length=0);
+      batteryChart.update();
+      solarChart.update();
+      loadChart.update();
+    });
+    fetchNewData();
+  </script>
+</body>
+</html>

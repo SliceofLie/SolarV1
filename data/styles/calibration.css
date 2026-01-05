@@ -1,0 +1,116 @@
+/* Styles specific to the calibration page */
+
+body {
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 10px;
+}
+
+.section h2 {
+  color: #4CAF50;
+  margin-top: 0;
+  font-size: 18px;
+}
+
+/* Calibration Item Styles */
+.cal-item {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: #3d3d3d;
+  border-radius: 5px;
+  border-left: 4px solid #4CAF50;
+}
+
+.cal-item h3 {
+  margin: 0 0 10px 0;
+  color: #FFB74D;
+  font-size: 16px;
+}
+
+.cal-row {
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-label {
+  color: #ddd;
+  min-width: 120px;
+}
+
+.cal-value {
+  color: #4FC3F7;
+  font-weight: bold;
+  min-width: 100px;
+}
+
+.cal-row input[type="number"] {
+  width: 120px;
+}
+
+/* Calibration-specific button sizes */
+.btn-calibrate,
+.btn-zero,
+.btn-refresh {
+  padding: 10px 20px;
+}
+
+.btn-save,
+.btn-reset {
+  padding: 12px 30px;
+  font-size: 16px;
+}
+
+/* Button class mappings to common.css:
+ * .btn-calibrate - uses .btn-secondary (blue)
+ * .btn-zero - uses .btn-warning (orange)
+ * .btn-save - uses .btn-primary (green)
+ * .btn-reset - uses .btn-danger (red)
+ * .btn-refresh - uses .btn-info (purple)
+ */
+
+/* Message Styles */
+.message {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+  display: none;
+}
+
+.message.success {
+  background-color: #4CAF50;
+  display: block;
+}
+
+.message.error {
+  background-color: #f44336;
+  display: block;
+}
+
+/* Advanced Section */
+.advanced {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #2d2d2d;
+  border-radius: 5px;
+}
+
+.advanced summary {
+  cursor: pointer;
+  color: #4CAF50;
+  font-weight: bold;
+  padding: 5px;
+}
+
+.advanced-content {
+  margin-top: 10px;
+}
+
+.factor-display {
+  font-size: 12px;
+  color: #999;
+  margin-top: 5px;
+}

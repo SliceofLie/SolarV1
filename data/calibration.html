@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calibration</title>
+  <link rel="stylesheet" href="styles/common.css">
+  <link rel="stylesheet" href="styles/calibration.css">
+</head>
+<body>
+  <div id="header">
+    <h1>System Calibration</h1>
+    <a href="/" class="header-link">Monitor</a>
+    <a href="/history" class="header-link">History</a>
+    <a href="/wifi" class="header-link">WiFi</a>
+  </div>
+  <div id="message" class="message"></div>
+
+  <div class="section">
+    <h2>Solar</h2>
+
+    <div class="cal-item">
+      <h3>Solar- Voltage</h3>
+      <div class="info-box">
+        <p><strong>Zero Calibration:</strong> Connect SOLAR- to BATT- terminals (force same voltage), then click "Set Zero"</p>
+        <p><strong>Scale Calibration:</strong> Apply known voltage, measure with DMM, enter value and click "Calibrate"</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="solar_minus_raw">-- V</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="solar_minus_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateSolarMinusScale()">Calibrate Scale</button>
+        <button class="btn-zero btn-warning" onclick="zeroSolarMinus()">Set Zero</button>
+      </div>
+      <div class="factor-display">Offset: <span id="solar_minus_offset_val">0.000</span> V | Scale: <span id="solar_minus_scale_val">1.0000</span></div>
+    </div>
+
+    <div class="cal-item">
+      <h3>Solar+ Voltage</h3>
+      <div class="info-box">
+        <p><strong>Zero Calibration:</strong> Connect SOLAR+ to SOLAR- terminals, then click "Set Zero"</p>
+        <p><strong>Scale Calibration:</strong> Apply known voltage between SOLAR+ and SOLAR-, measure with DMM, enter value</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="solar_plus_raw">-- V</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="solar_plus_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateSolarPlusScale()">Calibrate Scale</button>
+        <button class="btn-zero btn-warning" onclick="zeroSolarPlus()">Set Zero</button>
+      </div>
+      <div class="factor-display">Offset: <span id="solar_plus_offset_val">0.000</span> V | Scale: <span id="solar_plus_scale_val">1.0000</span></div>
+    </div>
+
+    <div class="cal-item">
+      <h3>Solar Panel Current</h3>
+      <div class="info-box">
+        <p><strong>Zero:</strong> Disconnect or short solar panel, click "Set Zero"</p>
+        <p><strong>Scale:</strong> Apply known load to solar, measure current with DMM, enter value</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="solar_current_raw">-- A</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="solar_current_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateSolarCurrentScale()">Calibrate Scale</button>
+        <button class="btn-zero btn-warning" onclick="zeroSolarCurrent()">Set Zero</button>
+      </div>
+      <div class="factor-display">Offset: <span id="solar_current_offset_val">0.000</span> A | Scale: <span id="solar_current_scale_val">1.0000</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Battery</h2>
+
+    <div class="cal-item">
+      <h3>Battery Voltage</h3>
+      <div class="info-box">
+        <p>Measure battery voltage with DMM, enter value and click "Calibrate"</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="batt_voltage_raw">-- V</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="batt_voltage_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateBattVoltage()">Calibrate</button>
+      </div>
+      <div class="factor-display">Scale: <span id="batt_voltage_scale_val">1.0000</span></div>
+    </div>
+
+    <div class="cal-item">
+      <h3>Battery Current</h3>
+      <div class="info-box">
+        <p><strong>Zero:</strong> Disconnect battery, click "Set Zero"</p>
+        <p><strong>Scale:</strong> Apply known load, measure current with DMM, enter value</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="batt_current_raw">-- A</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="batt_current_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateBattCurrentScale()">Calibrate Scale</button>
+        <button class="btn-zero btn-warning" onclick="zeroBattCurrent()">Set Zero</button>
+      </div>
+      <div class="factor-display">Offset: <span id="batt_current_offset_val">0.000</span> A | Scale: <span id="batt_current_scale_val">1.0000</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Load</h2>
+
+    <div class="cal-item">
+      <h3>Load Voltage</h3>
+      <div class="info-box">
+        <p>Measure load voltage with DMM, enter value and click "Calibrate"</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="load_voltage_raw">-- V</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="load_voltage_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateLoadVoltage()">Calibrate</button>
+      </div>
+      <div class="factor-display">Scale: <span id="load_voltage_scale_val">1.0000</span></div>
+    </div>
+
+    <div class="cal-item">
+      <h3>Load Current</h3>
+      <div class="info-box">
+        <p><strong>Zero:</strong> Disconnect load, click "Set Zero"</p>
+        <p><strong>Scale:</strong> Apply known load, measure current with DMM, enter value</p>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">Device Reading:</span>
+        <span class="cal-value" id="load_current_raw">-- A</span>
+      </div>
+      <div class="cal-row">
+        <span class="cal-label">DMM Reading:</span>
+        <input type="number" step="0.001" id="load_current_dmm" placeholder="Enter DMM value">
+        <button class="btn-calibrate btn-secondary" onclick="calibrateLoadCurrentScale()">Calibrate Scale</button>
+        <button class="btn-zero btn-warning" onclick="zeroLoadCurrent()">Set Zero</button>
+      </div>
+      <div class="factor-display">Offset: <span id="load_current_offset_val">0.000</span> A | Scale: <span id="load_current_scale_val">1.0000</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="button-group">
+      <button class="btn-save btn-primary" onclick="saveCalibration()">Save All Calibration</button>
+      <button class="btn-reset btn-danger" onclick="resetCalibration()">Reset to Defaults</button>
+      <button class="btn-refresh btn-info" onclick="refreshReadings()">Refresh Readings</button>
+    </div>
+  </div>
+
+  <script>
+    let rawReadings={};
+    let calFactors={};
+
+    function showMessage(text,isError){
+      const msg=document.getElementById('message');
+      msg.textContent=text;
+      msg.className='message '+(isError?'error':'success');
+      setTimeout(()=>msg.className='message',3000);
+    }
+
+    function refreshReadings(){
+      fetch('/data').then(r=>r.json()).then(data=>{
+        rawReadings=data;
+        document.getElementById('batt_voltage_raw').textContent=data.battery.voltage.toFixed(3)+' V';
+        document.getElementById('batt_current_raw').textContent=data.battery.current.toFixed(3)+' A';
+        document.getElementById('load_voltage_raw').textContent=data.load.voltage.toFixed(3)+' V';
+        document.getElementById('load_current_raw').textContent=data.load.current.toFixed(3)+' A';
+        document.getElementById('solar_plus_raw').textContent=data.solar.voltage_plus.toFixed(3)+' V';
+        document.getElementById('solar_minus_raw').textContent=data.solar.voltage_minus.toFixed(3)+' V';
+        document.getElementById('solar_current_raw').textContent=data.solar.current.toFixed(3)+' A';
+      }).catch(err=>showMessage('Error loading readings',true));
+
+      fetch('/cal-data').then(r=>r.json()).then(data=>{
+        if(Object.keys(calFactors).length===0){
+          calFactors=data;
+          document.getElementById('solar_minus_offset_val').textContent=data.solar_minus_offset.toFixed(3);
+          document.getElementById('solar_minus_scale_val').textContent=data.solar_minus_scale.toFixed(4);
+          document.getElementById('solar_plus_offset_val').textContent=data.solar_plus_offset.toFixed(3);
+          document.getElementById('solar_plus_scale_val').textContent=data.solar_plus_scale.toFixed(4);
+          document.getElementById('batt_voltage_scale_val').textContent=data.batt_voltage_scale.toFixed(4);
+          document.getElementById('batt_current_offset_val').textContent=data.batt_current_offset.toFixed(3);
+          document.getElementById('batt_current_scale_val').textContent=data.batt_current_scale.toFixed(4);
+          document.getElementById('load_voltage_scale_val').textContent=data.load_voltage_scale.toFixed(4);
+          document.getElementById('load_current_offset_val').textContent=data.load_current_offset.toFixed(3);
+          document.getElementById('load_current_scale_val').textContent=data.load_current_scale.toFixed(4);
+          document.getElementById('solar_current_offset_val').textContent=data.solar_current_offset.toFixed(3);
+          document.getElementById('solar_current_scale_val').textContent=data.solar_current_scale.toFixed(4);
+        }
+      }).catch(err=>showMessage('Error loading calibration',true));
+    }
+
+    function zeroSolarMinus(){calFactors.solar_minus_offset=-rawReadings.solar.voltage_minus;document.getElementById('solar_minus_offset_val').textContent=calFactors.solar_minus_offset.toFixed(3);showMessage('Solar- zero set',false);}
+    function zeroSolarPlus(){calFactors.solar_plus_offset=-rawReadings.solar.voltage_plus;document.getElementById('solar_plus_offset_val').textContent=calFactors.solar_plus_offset.toFixed(3);showMessage('Solar+ zero set',false);}
+    function zeroBattCurrent(){calFactors.batt_current_offset=-rawReadings.battery.current;document.getElementById('batt_current_offset_val').textContent=calFactors.batt_current_offset.toFixed(3);showMessage('Battery current zero set',false);}
+    function zeroLoadCurrent(){calFactors.load_current_offset=-rawReadings.load.current;document.getElementById('load_current_offset_val').textContent=calFactors.load_current_offset.toFixed(3);showMessage('Load current zero set',false);}
+    function zeroSolarCurrent(){calFactors.solar_current_offset=-rawReadings.solar.current;document.getElementById('solar_current_offset_val').textContent=calFactors.solar_current_offset.toFixed(3);showMessage('Solar current zero set',false);}
+
+    function calibrateSolarMinusScale(){
+      const dmm=parseFloat(document.getElementById('solar_minus_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.solar.voltage_minus+calFactors.solar_minus_offset;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small for scale cal',true);return;}
+      calFactors.solar_minus_scale=dmm/raw;
+      document.getElementById('solar_minus_scale_val').textContent=calFactors.solar_minus_scale.toFixed(4);
+      showMessage('Solar- scale calibrated',false);
+    }
+
+    function calibrateSolarPlusScale(){
+      const dmm=parseFloat(document.getElementById('solar_plus_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.solar.voltage_plus+calFactors.solar_plus_offset;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small for scale cal',true);return;}
+      calFactors.solar_plus_scale=dmm/raw;
+      document.getElementById('solar_plus_scale_val').textContent=calFactors.solar_plus_scale.toFixed(4);
+      showMessage('Solar+ scale calibrated',false);
+    }
+
+    function calibrateBattVoltage(){
+      const dmm=parseFloat(document.getElementById('batt_voltage_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.battery.voltage;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small',true);return;}
+      calFactors.batt_voltage_scale=dmm/raw;
+      document.getElementById('batt_voltage_scale_val').textContent=calFactors.batt_voltage_scale.toFixed(4);
+      showMessage('Battery voltage calibrated',false);
+    }
+
+    function calibrateBattCurrentScale(){
+      const dmm=parseFloat(document.getElementById('batt_current_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.battery.current+calFactors.batt_current_offset;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small for scale cal',true);return;}
+      calFactors.batt_current_scale=dmm/raw;
+      document.getElementById('batt_current_scale_val').textContent=calFactors.batt_current_scale.toFixed(4);
+      showMessage('Battery current scale calibrated',false);
+    }
+
+    function calibrateLoadVoltage(){
+      const dmm=parseFloat(document.getElementById('load_voltage_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.load.voltage;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small',true);return;}
+      calFactors.load_voltage_scale=dmm/raw;
+      document.getElementById('load_voltage_scale_val').textContent=calFactors.load_voltage_scale.toFixed(4);
+      showMessage('Load voltage calibrated',false);
+    }
+
+    function calibrateLoadCurrentScale(){
+      const dmm=parseFloat(document.getElementById('load_current_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.load.current+calFactors.load_current_offset;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small for scale cal',true);return;}
+      calFactors.load_current_scale=dmm/raw;
+      document.getElementById('load_current_scale_val').textContent=calFactors.load_current_scale.toFixed(4);
+      showMessage('Load current scale calibrated',false);
+    }
+
+    function calibrateSolarCurrentScale(){
+      const dmm=parseFloat(document.getElementById('solar_current_dmm').value);
+      if(isNaN(dmm)){showMessage('Enter valid DMM reading',true);return;}
+      const raw=rawReadings.solar.current+calFactors.solar_current_offset;
+      if(Math.abs(raw)<0.001){showMessage('Raw reading too small for scale cal',true);return;}
+      calFactors.solar_current_scale=dmm/raw;
+      document.getElementById('solar_current_scale_val').textContent=calFactors.solar_current_scale.toFixed(4);
+      showMessage('Solar current scale calibrated',false);
+    }
+
+    function saveCalibration(){
+      fetch('/cal-save',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(calFactors)
+      })
+      .then(r=>r.text())
+      .then(result=>{
+        showMessage(result,false);
+      })
+      .catch(err=>showMessage('Error saving',true));
+    }
+
+    function resetCalibration(){
+      if(confirm('Reset all calibration to defaults?')){
+        fetch('/cal-reset',{method:'POST'})
+          .then(r=>r.text())
+          .then(result=>{
+            showMessage(result,false);
+            calFactors={};
+            refreshReadings();
+          })
+          .catch(err=>showMessage('Error resetting',true));
+      }
+    }
+
+    setInterval(refreshReadings,2000);
+    window.onload=refreshReadings;
+  </script>
+</body>
+</html>

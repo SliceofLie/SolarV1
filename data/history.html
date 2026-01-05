@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>History - Solar Power Monitor</title>
+  <link rel="stylesheet" href="styles/common.css">
+  <link rel="stylesheet" href="styles/history.css">
+  <script src="scripts/moment.min.js"></script>
+  <script src="scripts/Chart.js"></script>
+</head>
+<body>
+  <div id="header">
+    <h1>Solar Power History</h1>
+    <a href="/" class="header-link">← Back to Live Monitor</a>
+    <a href="/calibration" class="header-link">Calibration</a>
+    <a href="/wifi" class="header-link">WiFi</a>
+  </div>
+
+  <div id="tabs">
+    <button class="tab-button active" onclick="switchTab('minute')">Last Hour (per minute)</button>
+    <button class="tab-button" onclick="switchTab('hourly')">Last 24 Hours (per hour)</button>
+  </div>
+
+  <div id="content">
+    <div class="status">
+      <span class="status-text" id="statusText">Loading...</span>
+    </div>
+
+    <div id="minuteTab" class="tab-content active">
+      <div class="info-box">
+        <p><strong>Last Hour:</strong> Shows voltage and current averaged per minute over the last 60 minutes. Power is calculated from stored voltage and current.</p>
+      </div>
+      <div id="charts">
+        <div class="chart-container"><canvas id="minuteBatteryChart"></canvas></div>
+        <div class="chart-container"><canvas id="minuteLoadChart"></canvas></div>
+        <div class="chart-container"><canvas id="minuteSolarChart"></canvas></div>
+      </div>
+    </div>
+
+    <div id="hourlyTab" class="tab-content">
+      <div class="info-box">
+        <p><strong>Last 24 Hours:</strong> Shows voltage and current averaged per hour over the last 24 hours. Each hourly point is the average of 60 minute samples.</p>
+      </div>
+      <div id="charts">
+        <div class="chart-container"><canvas id="hourlyBatteryChart"></canvas></div>
+        <div class="chart-container"><canvas id="hourlyLoadChart"></canvas></div>
+        <div class="chart-container"><canvas id="hourlySolarChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    Chart.defaults.global.defaultFontColor='#ffffff';
+
+    function createHistoryChart(id,title,vc,cc,pc){
+      return new Chart(document.getElementById(id),{type:'line',data:{datasets:[
+        {label:'Voltage (V)',backgroundColor:'rgba(0,0,0,0)',borderColor:vc,data:[],yAxisID:'voltage-axis',borderWidth:2,pointRadius:2,lineTension:0.1,fill:false},
+        {label:'Current (A)',backgroundColor:'rgba(0,0,0,0)',borderColor:cc,data:[],yAxisID:'current-axis',borderWidth:2,pointRadius:2,lineTension:0.1,fill:false},
+        {label:'Power (W)',backgroundColor:'rgba(0,0,0,0)',borderColor:pc,data:[],yAxisID:'power-axis',borderWidth:2,pointRadius:2,lineTension:0.1,fill:false}
+      ]},options:{maintainAspectRatio:false,title:{display:true,text:title,fontSize:16,fontColor:'#4CAF50'},legend:{display:true,labels:{fontColor:'#fff',fontSize:11}},
+      scales:{xAxes:[{type:'time',time:{unit:'minute',displayFormats:{minute:'HH:mm'},tooltipFormat:'MMM D, HH:mm'},ticks:{fontColor:'#999',maxRotation:45},gridLines:{color:'#3d3d3d'}}],
+      yAxes:[{id:'voltage-axis',type:'linear',position:'left',scaleLabel:{display:true,labelString:'Voltage (V)',fontColor:vc},ticks:{fontColor:vc,beginAtZero:false,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{color:'#3d3d3d'}},
+      {id:'current-axis',type:'linear',position:'left',scaleLabel:{display:true,labelString:'Current (A)',fontColor:cc},ticks:{fontColor:cc,beginAtZero:true,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{display:false}},
+      {id:'power-axis',type:'linear',position:'right',scaleLabel:{display:true,labelString:'Power (W)',fontColor:pc},ticks:{fontColor:pc,beginAtZero:true,maxTicksLimit:5,callback:function(value,index,values){if(index>0&&value.toFixed(3)===values[index-1].toFixed(3))return '';return value.toFixed(3);}},gridLines:{display:false}}]},
+      animation:{duration:500},hover:{animationDuration:200},tooltips:{mode:'index',intersect:false,backgroundColor:'rgba(0,0,0,0.8)',titleFontColor:'#fff',bodyFontColor:'#fff',callbacks:{label:function(tooltipItem,data){var label=data.datasets[tooltipItem.datasetIndex].label||'';return label+': '+tooltipItem.yLabel.toFixed(3);}}}}});
+    }
+
+    var minuteBatteryChart=null;
+    var minuteSolarChart=null;
+    var minuteLoadChart=null;
+    var hourlyBatteryChart=null;
+    var hourlySolarChart=null;
+    var hourlyLoadChart=null;
+    var chartsInitialized=false;
+
+    function initializeCharts(){
+      if(chartsInitialized)return;
+      minuteBatteryChart=createHistoryChart('minuteBatteryChart','Battery','#FFB74D','#4FC3F7','#81C784');
+      minuteSolarChart=createHistoryChart('minuteSolarChart','Solar Panel','#FFA726','#29B6F6','#66BB6A');
+      minuteLoadChart=createHistoryChart('minuteLoadChart','Load','#FF9800','#03A9F4','#4CAF50');
+      hourlyBatteryChart=createHistoryChart('hourlyBatteryChart','Battery','#FFB74D','#4FC3F7','#81C784');
+      hourlySolarChart=createHistoryChart('hourlySolarChart','Solar Panel','#FFA726','#29B6F6','#66BB6A');
+      hourlyLoadChart=createHistoryChart('hourlyLoadChart','Load','#FF9800','#03A9F4','#4CAF50');
+      chartsInitialized=true;
+    }
+
+    function switchTab(tab){
+      document.querySelectorAll('.tab-button').forEach(btn=>btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content=>content.classList.remove('active'));
+
+      if(tab==='minute'){
+        document.querySelectorAll('.tab-button')[0].classList.add('active');
+        document.getElementById('minuteTab').classList.add('active');
+        if(minuteBatteryChart)minuteBatteryChart.update();
+        if(minuteSolarChart)minuteSolarChart.update();
+        if(minuteLoadChart)minuteLoadChart.update();
+      }else if(tab==='hourly'){
+        document.querySelectorAll('.tab-button')[1].classList.add('active');
+        document.getElementById('hourlyTab').classList.add('active');
+        if(hourlyBatteryChart)hourlyBatteryChart.update();
+        if(hourlySolarChart)hourlySolarChart.update();
+        if(hourlyLoadChart)hourlyLoadChart.update();
+      }
+    }
+
+    function updateChart(chart,data){
+      if(!chart)return;
+      chart.data.datasets[0].data=data.map(d=>({x:new Date(d.time*1000),y:d.voltage}));
+      chart.data.datasets[1].data=data.map(d=>({x:new Date(d.time*1000),y:d.current}));
+      chart.data.datasets[2].data=data.map(d=>({x:new Date(d.time*1000),y:d.voltage*d.current}));
+      chart.update();
+    }
+
+    function loadHistory(){
+      Promise.all([
+        fetch('/history-minute').then(r=>r.json()),
+        fetch('/history-hourly').then(r=>r.json())
+      ]).then(([minuteData,hourlyData])=>{
+        const statusEl=document.getElementById('statusText');
+        statusEl.classList.remove('error');
+        statusEl.classList.remove('loaded');
+
+        if(minuteData.length===0&&hourlyData.length===0){
+          statusEl.textContent='No history data: NTP time not synced';
+          statusEl.classList.add('error');
+          return;
+        }
+
+        initializeCharts();
+
+        if(minuteData.length>0){
+          var battData=minuteData.map(d=>({time:d.t,voltage:d.bt.v,current:d.bt.i}));
+          var solarData=minuteData.map(d=>({time:d.t,voltage:d.pv.v,current:d.pv.i}));
+          var loadData=minuteData.map(d=>({time:d.t,voltage:d.ld.v,current:d.ld.i}));
+          updateChart(minuteBatteryChart,battData);
+          updateChart(minuteSolarChart,solarData);
+          updateChart(minuteLoadChart,loadData);
+        }
+
+        if(hourlyData.length>0){
+          var battData=hourlyData.map(d=>({time:d.t,voltage:d.bt.v,current:d.bt.i}));
+          var solarData=hourlyData.map(d=>({time:d.t,voltage:d.pv.v,current:d.pv.i}));
+          var loadData=hourlyData.map(d=>({time:d.t,voltage:d.ld.v,current:d.ld.i}));
+          updateChart(hourlyBatteryChart,battData);
+          updateChart(hourlySolarChart,solarData);
+          updateChart(hourlyLoadChart,loadData);
+        }
+
+        statusEl.textContent='Last updated: '+new Date().toLocaleTimeString()+' ('+minuteData.length+' min / '+hourlyData.length+' hourly samples)';
+        statusEl.classList.add('loaded');
+      }).catch(err=>{
+        const statusEl=document.getElementById('statusText');
+        statusEl.textContent='Error loading history';
+        statusEl.classList.add('error');
+        console.error(err);
+      });
+    }
+
+    loadHistory();
+    setInterval(loadHistory,10000);
+  </script>
+</body>
+</html>

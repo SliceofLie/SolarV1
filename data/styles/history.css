@@ -1,0 +1,61 @@
+/* Styles specific to the history page */
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Tabs */
+#tabs {
+  background-color: #2d2d2d;
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  gap: 10px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  background-color: #3d3d3d;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.tab-button.active {
+  background-color: #4CAF50;
+}
+
+.tab-button:hover {
+  background-color: #4a4a4a;
+}
+
+.tab-button.active:hover {
+  background-color: #45a049;
+}
+
+/* Content Area */
+#content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: auto;
+}
+
+.tab-content {
+  display: none;
+  flex-grow: 1;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tab-content.active {
+  display: flex;
+}
+
+/* Chart container and status styles are now in common.css */

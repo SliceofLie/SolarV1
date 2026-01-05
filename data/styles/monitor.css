@@ -1,0 +1,83 @@
+/* Styles specific to the main monitor page (index.html) */
+
+body {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Config Panel */
+#config {
+  margin: 10px 8px;
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #2d2d2d;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.config-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#periodRange {
+  width: 150px;
+}
+
+#config input[type="number"] {
+  width: 80px;
+}
+
+#config button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+#config button:hover {
+  background-color: #45a049;
+}
+
+/* Status Panel */
+#status {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: #2d2d2d;
+  margin: 0 8px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.status-item {
+  text-align: center;
+}
+
+.status-label {
+  color: #999;
+  font-size: 12px;
+}
+
+.status-value {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.status-value.voltage {
+  color: #FFB74D;
+}
+
+.status-value.current {
+  color: #4FC3F7;
+}
+
+.status-value.power {
+  color: #81C784;
+}
+
+/* Charts Container styles are now in common.css */
