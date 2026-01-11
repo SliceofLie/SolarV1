@@ -66,6 +66,7 @@ extern bool wifiConnected;
 extern bool timeSynced;
 extern WiFiManagerState wifiState;
 extern WiFiConfig_t wifiConfig;
+extern bool usingHardcodedDefaults;  // Track if using hardcoded defaults (to auto-save on success)
 
 // Core functions
 void wifiInit();

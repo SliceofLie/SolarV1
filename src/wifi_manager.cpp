@@ -9,6 +9,7 @@ static unsigned long lastNtpSync = 0;
 // New WiFi manager state
 WiFiManagerState wifiState = WIFI_STATE_INIT;
 WiFiConfig_t wifiConfig;
+bool usingHardcodedDefaults = false;  // Track if using hardcoded defaults
 static uint8_t connectionFailCount = 0;
 static unsigned long lastConnectionAttempt = 0;
 static bool pendingRestart = false;
@@ -38,6 +39,16 @@ void onWiFiConnected(const WiFiEventStationModeGotIP& event) {
   Serial.print(WiFi.RSSI());
   Serial.println(" dBm");
   #endif
+
+  // If we connected using hardcoded defaults, save them to EEPROM
+  if (usingHardcodedDefaults) {
+    #if DEBUG_WIFI
+    Serial.println("Hardcoded defaults worked - saving to EEPROM");
+    #endif
+    wifiConfig.configured = true;
+    saveWiFiConfig();
+    usingHardcodedDefaults = false;  // Clear the flag
+  }
 
   // Start NTP sync with automatic DST handling
   configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
@@ -258,6 +269,15 @@ void startAPMode() {
     return; // Already in AP mode
   }
 
+  // Clear hardcoded defaults flag since we're falling back to AP mode
+  if (usingHardcodedDefaults) {
+    #if DEBUG_WIFI
+    Serial.println("Hardcoded defaults failed - falling back to AP mode");
+    #endif
+    usingHardcodedDefaults = false;
+    wifiConfig.configured = false;  // Mark as unconfigured
+  }
+
   #if DEBUG_WIFI
   Serial.println("Starting AP mode with captive portal");
   #endif
@@ -351,12 +371,17 @@ void serialPrintMenu() {
 
 void serialHandleCommand(String cmd) {
   cmd.trim();
-  cmd.toLowerCase();
 
-  if (cmd == "menu") {
+  // Extract first word (command keyword) and convert only that to lowercase
+  // This preserves case for parameters like SSID and password
+  int firstSpace = cmd.indexOf(' ');
+  String keyword = (firstSpace > 0) ? cmd.substring(0, firstSpace) : cmd;
+  keyword.toLowerCase();
+
+  if (keyword == "menu") {
     serialPrintMenu();
   }
-  else if (cmd == "scan") {
+  else if (keyword == "scan") {
     Serial.println("Scanning WiFi networks...");
     int n = WiFi.scanNetworks();
     Serial.print("Found ");
@@ -373,8 +398,7 @@ void serialHandleCommand(String cmd) {
       Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
     }
   }
-  else if (cmd.startsWith("set ")) {
-    int firstSpace = cmd.indexOf(' ');
+  else if (keyword == "set") {
     int secondSpace = cmd.indexOf(' ', firstSpace + 1);
 
     if (secondSpace > 0) {
@@ -398,7 +422,7 @@ void serialHandleCommand(String cmd) {
       Serial.println("Usage: set <ssid> <password>");
     }
   }
-  else if (cmd == "status") {
+  else if (keyword == "status") {
     Serial.println("\n=== WiFi Status ===");
     Serial.print("State: ");
     Serial.println(getWiFiStatusString());
@@ -415,12 +439,12 @@ void serialHandleCommand(String cmd) {
     }
     Serial.println("===================\n");
   }
-  else if (cmd == "resetwifi") {
+  else if (keyword == "resetwifi") {
     Serial.println("Clearing WiFi credentials and restarting...");
     clearWiFiConfig();
     setPendingRestart();
   }
-  else if (cmd == "portal") {
+  else if (keyword == "portal") {
     Serial.println("Starting configuration portal...");
     startAPMode();
   }
@@ -474,21 +498,23 @@ void wifiInit() {
 
   if (!hasConfig) {
     #if DEBUG_WIFI
-    Serial.println("No WiFi config found - starting AP mode for initial setup");
+    Serial.println("No WiFi config found - trying hardcoded defaults");
     #endif
 
-    // Set default device name
+    // Try hardcoded default credentials before falling back to AP mode
+    strlcpy(wifiConfig.ssid, WIFI_AP1_SSID, sizeof(wifiConfig.ssid));
+    strlcpy(wifiConfig.password, WIFI_AP1_PASS, sizeof(wifiConfig.password));
     strlcpy(wifiConfig.deviceName, "SolarV1", sizeof(wifiConfig.deviceName));
-    wifiConfig.configured = false;
+    wifiConfig.configured = true;  // Mark as configured to attempt connection
+    usingHardcodedDefaults = true;  // Set flag to auto-save if connection succeeds
 
-    // Register event handlers before starting AP mode
-    wifiConnectHandler = WiFi.onStationModeGotIP(onWiFiConnected);
-    wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWiFiDisconnected);
+    #if DEBUG_WIFI
+    Serial.print("Attempting connection with hardcoded SSID: ");
+    Serial.println(wifiConfig.ssid);
+    #endif
 
-    // Start AP mode immediately
-    WiFi.mode(WIFI_AP_STA);
-    startAPMode();
-    return; // Don't try to connect in STA mode
+    // Continue to normal connection flow below (don't return here)
+    // If connection fails, wifiUpdate() will fall back to AP mode after retries
   }
 
   // Configure WiFi in station mode
