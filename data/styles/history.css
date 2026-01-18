@@ -38,6 +38,24 @@ body {
   background-color: #45a049;
 }
 
+/* Toggle button for min/max bands */
+.toggle-btn {
+  background-color: #555;
+  margin-left: auto;
+}
+
+.toggle-btn.active {
+  background-color: #9C27B0;
+}
+
+.toggle-btn:hover {
+  background-color: #666;
+}
+
+.toggle-btn.active:hover {
+  background-color: #7b1fa2;
+}
+
 /* Content Area */
 #content {
   flex-grow: 1;

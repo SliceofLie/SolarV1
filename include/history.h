@@ -11,8 +11,12 @@
 
 // Single data point for one source (battery, solar, or load)
 typedef struct {
-  float voltage;
-  float current;
+  float voltage;      // Average voltage
+  float current;      // Average current
+  float voltageMin;   // Minimum voltage in period
+  float voltageMax;   // Maximum voltage in period
+  float currentMin;   // Minimum current in period
+  float currentMax;   // Maximum current in period
   // Power is calculated on-demand as voltage * current to save memory
 } HISTORY_POINT_t;
 
@@ -39,6 +43,11 @@ extern HISTORY_POINT_t minuteAccumLoad;
 extern uint16_t minuteAccumCount;
 extern time_t lastMinuteSave;        // Timestamp of last minute save
 extern time_t lastHourlySave;        // Timestamp of last hourly save
+
+// Min/max tracking during accumulation period
+extern float minuteMinBattV, minuteMaxBattV, minuteMinBattC, minuteMaxBattC;
+extern float minuteMinSolarV, minuteMaxSolarV, minuteMinSolarC, minuteMaxSolarC;
+extern float minuteMinLoadV, minuteMaxLoadV, minuteMinLoadC, minuteMaxLoadC;
 
 // Initialize history system
 void historyInit();

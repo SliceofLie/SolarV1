@@ -1,6 +1,7 @@
 #include "debug_config.h"
 #include "history.h"
 #include "wifi_manager.h"
+#include <float.h>
 
 // History storage arrays (initialized to zero by default)
 HISTORY_MEASUREMENT_t historyMinute[HISTORY_MINUTE_SAMPLES];
@@ -11,12 +12,20 @@ bool historyMinuteFilled = false;
 bool historyHourlyFilled = false;
 
 // Current minute accumulators
-HISTORY_POINT_t minuteAccumBattery = {0, 0};
-HISTORY_POINT_t minuteAccumSolar = {0, 0};
-HISTORY_POINT_t minuteAccumLoad = {0, 0};
+HISTORY_POINT_t minuteAccumBattery = {0, 0, 0, 0, 0, 0};
+HISTORY_POINT_t minuteAccumSolar = {0, 0, 0, 0, 0, 0};
+HISTORY_POINT_t minuteAccumLoad = {0, 0, 0, 0, 0, 0};
 uint16_t minuteAccumCount = 0;
 time_t lastMinuteSave = 0;
 time_t lastHourlySave = 0;
+
+// Min/max tracking during accumulation period
+float minuteMinBattV = FLT_MAX, minuteMaxBattV = -FLT_MAX;
+float minuteMinBattC = FLT_MAX, minuteMaxBattC = -FLT_MAX;
+float minuteMinSolarV = FLT_MAX, minuteMaxSolarV = -FLT_MAX;
+float minuteMinSolarC = FLT_MAX, minuteMaxSolarC = -FLT_MAX;
+float minuteMinLoadV = FLT_MAX, minuteMaxLoadV = -FLT_MAX;
+float minuteMinLoadC = FLT_MAX, minuteMaxLoadC = -FLT_MAX;
 
 void historyInit() {
   // Clear all arrays
@@ -28,12 +37,20 @@ void historyInit() {
   historyMinuteFilled = false;
   historyHourlyFilled = false;
 
-  minuteAccumBattery = {0, 0};
-  minuteAccumSolar = {0, 0};
-  minuteAccumLoad = {0, 0};
+  minuteAccumBattery = {0, 0, 0, 0, 0, 0};
+  minuteAccumSolar = {0, 0, 0, 0, 0, 0};
+  minuteAccumLoad = {0, 0, 0, 0, 0, 0};
   minuteAccumCount = 0;
   lastMinuteSave = 0;
   lastHourlySave = 0;
+
+  // Reset min/max accumulators
+  minuteMinBattV = FLT_MAX; minuteMaxBattV = -FLT_MAX;
+  minuteMinBattC = FLT_MAX; minuteMaxBattC = -FLT_MAX;
+  minuteMinSolarV = FLT_MAX; minuteMaxSolarV = -FLT_MAX;
+  minuteMinSolarC = FLT_MAX; minuteMaxSolarC = -FLT_MAX;
+  minuteMinLoadV = FLT_MAX; minuteMaxLoadV = -FLT_MAX;
+  minuteMinLoadC = FLT_MAX; minuteMaxLoadC = -FLT_MAX;
 
   #if DEBUG_HISTORY
   Serial.println("History system initialized");
@@ -63,6 +80,24 @@ void historyUpdate(double battV, double battC, double solarV, double solarC, dou
   minuteAccumLoad.current += loadC;
   minuteAccumCount++;
 
+  // Track min/max for battery
+  if (battV < minuteMinBattV) minuteMinBattV = battV;
+  if (battV > minuteMaxBattV) minuteMaxBattV = battV;
+  if (battC < minuteMinBattC) minuteMinBattC = battC;
+  if (battC > minuteMaxBattC) minuteMaxBattC = battC;
+
+  // Track min/max for solar
+  if (solarV < minuteMinSolarV) minuteMinSolarV = solarV;
+  if (solarV > minuteMaxSolarV) minuteMaxSolarV = solarV;
+  if (solarC < minuteMinSolarC) minuteMinSolarC = solarC;
+  if (solarC > minuteMaxSolarC) minuteMaxSolarC = solarC;
+
+  // Track min/max for load
+  if (loadV < minuteMinLoadV) minuteMinLoadV = loadV;
+  if (loadV > minuteMaxLoadV) minuteMaxLoadV = loadV;
+  if (loadC < minuteMinLoadC) minuteMinLoadC = loadC;
+  if (loadC > minuteMaxLoadC) minuteMaxLoadC = loadC;
+
   // Sanity check: prevent overflow and detect excessive calls
   if (minuteAccumCount > 65000) {
     #if DEBUG_HISTORY
@@ -82,6 +117,21 @@ void historyUpdate(double battV, double battC, double solarV, double solarC, dou
       historyMinute[historyMinuteIndex].solar.current = minuteAccumSolar.current / minuteAccumCount;
       historyMinute[historyMinuteIndex].load.voltage = minuteAccumLoad.voltage / minuteAccumCount;
       historyMinute[historyMinuteIndex].load.current = minuteAccumLoad.current / minuteAccumCount;
+
+      // Store min/max values
+      historyMinute[historyMinuteIndex].battery.voltageMin = minuteMinBattV;
+      historyMinute[historyMinuteIndex].battery.voltageMax = minuteMaxBattV;
+      historyMinute[historyMinuteIndex].battery.currentMin = minuteMinBattC;
+      historyMinute[historyMinuteIndex].battery.currentMax = minuteMaxBattC;
+      historyMinute[historyMinuteIndex].solar.voltageMin = minuteMinSolarV;
+      historyMinute[historyMinuteIndex].solar.voltageMax = minuteMaxSolarV;
+      historyMinute[historyMinuteIndex].solar.currentMin = minuteMinSolarC;
+      historyMinute[historyMinuteIndex].solar.currentMax = minuteMaxSolarC;
+      historyMinute[historyMinuteIndex].load.voltageMin = minuteMinLoadV;
+      historyMinute[historyMinuteIndex].load.voltageMax = minuteMaxLoadV;
+      historyMinute[historyMinuteIndex].load.currentMin = minuteMinLoadC;
+      historyMinute[historyMinuteIndex].load.currentMax = minuteMaxLoadC;
+
       // Save timestamp aligned to the minute boundary
       historyMinute[historyMinuteIndex].timestamp = currentMinuteBoundary;
 
@@ -104,11 +154,19 @@ void historyUpdate(double battV, double battC, double solarV, double solarC, dou
       }
 
       // Reset accumulators
-      minuteAccumBattery = {0, 0};
-      minuteAccumSolar = {0, 0};
-      minuteAccumLoad = {0, 0};
+      minuteAccumBattery = {0, 0, 0, 0, 0, 0};
+      minuteAccumSolar = {0, 0, 0, 0, 0, 0};
+      minuteAccumLoad = {0, 0, 0, 0, 0, 0};
       minuteAccumCount = 0;
       lastMinuteSave = currentMinuteBoundary;
+
+      // Reset min/max accumulators for next period
+      minuteMinBattV = FLT_MAX; minuteMaxBattV = -FLT_MAX;
+      minuteMinBattC = FLT_MAX; minuteMaxBattC = -FLT_MAX;
+      minuteMinSolarV = FLT_MAX; minuteMaxSolarV = -FLT_MAX;
+      minuteMinSolarC = FLT_MAX; minuteMaxSolarC = -FLT_MAX;
+      minuteMinLoadV = FLT_MAX; minuteMaxLoadV = -FLT_MAX;
+      minuteMinLoadC = FLT_MAX; minuteMaxLoadC = -FLT_MAX;
     }
   }
 
@@ -116,9 +174,9 @@ void historyUpdate(double battV, double battC, double solarV, double solarC, dou
   time_t currentHourBoundary = (now / 3600) * 3600;
   if (currentHourBoundary > lastHourlySave) {
     // Average all 60 minute samples to create one hourly sample
-    HISTORY_POINT_t hourlyBattery = {0, 0};
-    HISTORY_POINT_t hourlySolar = {0, 0};
-    HISTORY_POINT_t hourlyLoad = {0, 0};
+    HISTORY_POINT_t hourlyBattery = {0, 0, FLT_MAX, -FLT_MAX, FLT_MAX, -FLT_MAX};
+    HISTORY_POINT_t hourlySolar = {0, 0, FLT_MAX, -FLT_MAX, FLT_MAX, -FLT_MAX};
+    HISTORY_POINT_t hourlyLoad = {0, 0, FLT_MAX, -FLT_MAX, FLT_MAX, -FLT_MAX};
     uint8_t validSamples = 0;
 
     // Determine how many samples to average and where to start
@@ -128,23 +186,69 @@ void historyUpdate(double battV, double battC, double solarV, double solarC, dou
     for (uint8_t i = 0; i < samplesToAverage; i++) {
       uint8_t index = (startIndex + i) % HISTORY_MINUTE_SAMPLES;
       if (historyMinute[index].timestamp > 0) {  // Only count valid samples
+        // Accumulate averages
         hourlyBattery.voltage += historyMinute[index].battery.voltage;
         hourlyBattery.current += historyMinute[index].battery.current;
         hourlySolar.voltage += historyMinute[index].solar.voltage;
         hourlySolar.current += historyMinute[index].solar.current;
         hourlyLoad.voltage += historyMinute[index].load.voltage;
         hourlyLoad.current += historyMinute[index].load.current;
+
+        // Track true min/max across all minute samples
+        if (historyMinute[index].battery.voltageMin < hourlyBattery.voltageMin)
+          hourlyBattery.voltageMin = historyMinute[index].battery.voltageMin;
+        if (historyMinute[index].battery.voltageMax > hourlyBattery.voltageMax)
+          hourlyBattery.voltageMax = historyMinute[index].battery.voltageMax;
+        if (historyMinute[index].battery.currentMin < hourlyBattery.currentMin)
+          hourlyBattery.currentMin = historyMinute[index].battery.currentMin;
+        if (historyMinute[index].battery.currentMax > hourlyBattery.currentMax)
+          hourlyBattery.currentMax = historyMinute[index].battery.currentMax;
+
+        if (historyMinute[index].solar.voltageMin < hourlySolar.voltageMin)
+          hourlySolar.voltageMin = historyMinute[index].solar.voltageMin;
+        if (historyMinute[index].solar.voltageMax > hourlySolar.voltageMax)
+          hourlySolar.voltageMax = historyMinute[index].solar.voltageMax;
+        if (historyMinute[index].solar.currentMin < hourlySolar.currentMin)
+          hourlySolar.currentMin = historyMinute[index].solar.currentMin;
+        if (historyMinute[index].solar.currentMax > hourlySolar.currentMax)
+          hourlySolar.currentMax = historyMinute[index].solar.currentMax;
+
+        if (historyMinute[index].load.voltageMin < hourlyLoad.voltageMin)
+          hourlyLoad.voltageMin = historyMinute[index].load.voltageMin;
+        if (historyMinute[index].load.voltageMax > hourlyLoad.voltageMax)
+          hourlyLoad.voltageMax = historyMinute[index].load.voltageMax;
+        if (historyMinute[index].load.currentMin < hourlyLoad.currentMin)
+          hourlyLoad.currentMin = historyMinute[index].load.currentMin;
+        if (historyMinute[index].load.currentMax > hourlyLoad.currentMax)
+          hourlyLoad.currentMax = historyMinute[index].load.currentMax;
+
         validSamples++;
       }
     }
 
     if (validSamples > 0) {
+      // Store averages
       historyHourly[historyHourlyIndex].battery.voltage = hourlyBattery.voltage / validSamples;
       historyHourly[historyHourlyIndex].battery.current = hourlyBattery.current / validSamples;
       historyHourly[historyHourlyIndex].solar.voltage = hourlySolar.voltage / validSamples;
       historyHourly[historyHourlyIndex].solar.current = hourlySolar.current / validSamples;
       historyHourly[historyHourlyIndex].load.voltage = hourlyLoad.voltage / validSamples;
       historyHourly[historyHourlyIndex].load.current = hourlyLoad.current / validSamples;
+
+      // Store min/max values (true min/max across all minute samples in the hour)
+      historyHourly[historyHourlyIndex].battery.voltageMin = hourlyBattery.voltageMin;
+      historyHourly[historyHourlyIndex].battery.voltageMax = hourlyBattery.voltageMax;
+      historyHourly[historyHourlyIndex].battery.currentMin = hourlyBattery.currentMin;
+      historyHourly[historyHourlyIndex].battery.currentMax = hourlyBattery.currentMax;
+      historyHourly[historyHourlyIndex].solar.voltageMin = hourlySolar.voltageMin;
+      historyHourly[historyHourlyIndex].solar.voltageMax = hourlySolar.voltageMax;
+      historyHourly[historyHourlyIndex].solar.currentMin = hourlySolar.currentMin;
+      historyHourly[historyHourlyIndex].solar.currentMax = hourlySolar.currentMax;
+      historyHourly[historyHourlyIndex].load.voltageMin = hourlyLoad.voltageMin;
+      historyHourly[historyHourlyIndex].load.voltageMax = hourlyLoad.voltageMax;
+      historyHourly[historyHourlyIndex].load.currentMin = hourlyLoad.currentMin;
+      historyHourly[historyHourlyIndex].load.currentMax = hourlyLoad.currentMax;
+
       // Save timestamp aligned to the hour boundary
       historyHourly[historyHourlyIndex].timestamp = currentHourBoundary;
 
@@ -201,14 +305,26 @@ void serveHistoryJsonMinute(AsyncWebServerRequest* request) {
     JsonObject battery = sample["bt"].to<JsonObject>();
     battery["v"] = round(battV * 1000.0) / 1000.0;
     battery["i"] = round(battC * 1000.0) / 1000.0;
+    battery["vn"] = round(historyMinute[idx].battery.voltageMin * 1000.0) / 1000.0;
+    battery["vx"] = round(historyMinute[idx].battery.voltageMax * 1000.0) / 1000.0;
+    battery["in"] = round(historyMinute[idx].battery.currentMin * 1000.0) / 1000.0;
+    battery["ix"] = round(historyMinute[idx].battery.currentMax * 1000.0) / 1000.0;
 
     JsonObject solar = sample["pv"].to<JsonObject>();
     solar["v"] = round(solarV * 1000.0) / 1000.0;
     solar["i"] = round(solarC * 1000.0) / 1000.0;
+    solar["vn"] = round(historyMinute[idx].solar.voltageMin * 1000.0) / 1000.0;
+    solar["vx"] = round(historyMinute[idx].solar.voltageMax * 1000.0) / 1000.0;
+    solar["in"] = round(historyMinute[idx].solar.currentMin * 1000.0) / 1000.0;
+    solar["ix"] = round(historyMinute[idx].solar.currentMax * 1000.0) / 1000.0;
 
     JsonObject load = sample["ld"].to<JsonObject>();
     load["v"] = round(loadV * 1000.0) / 1000.0;
     load["i"] = round(loadC * 1000.0) / 1000.0;
+    load["vn"] = round(historyMinute[idx].load.voltageMin * 1000.0) / 1000.0;
+    load["vx"] = round(historyMinute[idx].load.voltageMax * 1000.0) / 1000.0;
+    load["in"] = round(historyMinute[idx].load.currentMin * 1000.0) / 1000.0;
+    load["ix"] = round(historyMinute[idx].load.currentMax * 1000.0) / 1000.0;
   }
 
   #if DEBUG_HISTORY
@@ -256,14 +372,26 @@ void serveHistoryJsonHourly(AsyncWebServerRequest* request) {
     JsonObject battery = sample["bt"].to<JsonObject>();
     battery["v"] = round(battV * 1000.0) / 1000.0;
     battery["i"] = round(battC * 1000.0) / 1000.0;
+    battery["vn"] = round(historyHourly[idx].battery.voltageMin * 1000.0) / 1000.0;
+    battery["vx"] = round(historyHourly[idx].battery.voltageMax * 1000.0) / 1000.0;
+    battery["in"] = round(historyHourly[idx].battery.currentMin * 1000.0) / 1000.0;
+    battery["ix"] = round(historyHourly[idx].battery.currentMax * 1000.0) / 1000.0;
 
     JsonObject solar = sample["pv"].to<JsonObject>();
     solar["v"] = round(solarV * 1000.0) / 1000.0;
     solar["i"] = round(solarC * 1000.0) / 1000.0;
+    solar["vn"] = round(historyHourly[idx].solar.voltageMin * 1000.0) / 1000.0;
+    solar["vx"] = round(historyHourly[idx].solar.voltageMax * 1000.0) / 1000.0;
+    solar["in"] = round(historyHourly[idx].solar.currentMin * 1000.0) / 1000.0;
+    solar["ix"] = round(historyHourly[idx].solar.currentMax * 1000.0) / 1000.0;
 
     JsonObject load = sample["ld"].to<JsonObject>();
     load["v"] = round(loadV * 1000.0) / 1000.0;
     load["i"] = round(loadC * 1000.0) / 1000.0;
+    load["vn"] = round(historyHourly[idx].load.voltageMin * 1000.0) / 1000.0;
+    load["vx"] = round(historyHourly[idx].load.voltageMax * 1000.0) / 1000.0;
+    load["in"] = round(historyHourly[idx].load.currentMin * 1000.0) / 1000.0;
+    load["ix"] = round(historyHourly[idx].load.currentMax * 1000.0) / 1000.0;
   }
 
   #if DEBUG_HISTORY
