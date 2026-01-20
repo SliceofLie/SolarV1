@@ -15,6 +15,7 @@
     <a href="/" class="header-link">← Back to Live Monitor</a>
     <a href="/calibration" class="header-link">Calibration</a>
     <a href="/wifi" class="header-link">WiFi</a>
+    <a href="/diagnostics" class="header-link">Diagnostics</a>
   </div>
 
   <div id="tabs">
@@ -175,14 +176,19 @@
     function loadHistory(){
       Promise.all([
         fetch('/history-minute').then(r=>r.json()),
-        fetch('/history-hourly').then(r=>r.json())
-      ]).then(([minuteData,hourlyData])=>{
+        fetch('/history-hourly').then(r=>r.json()),
+        fetch('/data').then(r=>r.json())
+      ]).then(([minuteData,hourlyData,liveData])=>{
         const statusEl=document.getElementById('statusText');
         statusEl.classList.remove('error');
         statusEl.classList.remove('loaded');
 
         if(minuteData.length===0&&hourlyData.length===0){
-          statusEl.textContent='No history data: NTP time not synced';
+          if(!liveData.time_synced){
+            statusEl.textContent='Waiting for NTP time sync...';
+          }else{
+            statusEl.textContent='Collecting data... (history available after first minute)';
+          }
           statusEl.classList.add('error');
           return;
         }

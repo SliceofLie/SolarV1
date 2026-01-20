@@ -19,4 +19,10 @@ void webServerInit();
 // Get current measurements as JSON string
 String getJsonData();
 
+// Get diagnostics data as JSON string
+String getDiagnosticsJson();
+
+// Get human-readable reset reason string
+String getResetReasonString(uint32 reason);
+
 #endif

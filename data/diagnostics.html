@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/common.css">
+  <link rel="stylesheet" href="styles/diagnostics.css">
+  <title>Diagnostics - Solar Monitor</title>
+</head>
+<body>
+  <div id="header">
+    <h1>System Diagnostics</h1>
+    <a href="/" class="header-link">Monitor</a>
+    <a href="/history" class="header-link">History</a>
+    <a href="/calibration" class="header-link">Calibration</a>
+    <a href="/wifi" class="header-link">WiFi</a>
+  </div>
+
+  <div class="diag-container">
+    <div class="status-box">
+      <h3>System Information</h3>
+      <div class="status-row">
+        <span class="status-label">Uptime:</span>
+        <span id="uptime" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Uptime (ms):</span>
+        <span id="uptimeMs" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Last Restart Reason:</span>
+        <span id="resetReason" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Chip ID:</span>
+        <span id="chipId" class="status-value">--</span>
+      </div>
+    </div>
+
+    <div class="status-box">
+      <h3>Memory</h3>
+      <div class="status-row">
+        <span class="status-label">Free Heap:</span>
+        <span id="freeHeap" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Heap Fragmentation:</span>
+        <span id="heapFrag" class="status-value">--</span>
+      </div>
+    </div>
+
+    <div class="status-box">
+      <h3>Time Synchronization</h3>
+      <div class="status-row">
+        <span class="status-label">NTP Status:</span>
+        <span id="ntpStatus" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Current Time:</span>
+        <span id="currentTime" class="status-value">--</span>
+      </div>
+    </div>
+
+    <div class="status-box">
+      <h3>WiFi Status</h3>
+      <div class="status-row">
+        <span class="status-label">Connection:</span>
+        <span id="wifiState" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Signal Strength:</span>
+        <span id="rssi" class="status-value">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">IP Address:</span>
+        <span id="ipAddr" class="status-value">--</span>
+      </div>
+    </div>
+
+    <div class="status-box">
+      <h3>Sensors</h3>
+      <div class="status-row">
+        <span class="status-label">I2C Errors:</span>
+        <span id="i2cErrors" class="status-value">--</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function formatUptime(ms) {
+      var seconds = Math.floor(ms / 1000);
+      var minutes = Math.floor(seconds / 60);
+      var hours = Math.floor(minutes / 60);
+      var days = Math.floor(hours / 24);
+
+      if (days > 0) {
+        return days + 'd ' + (hours % 24) + 'h ' + (minutes % 60) + 'm ' + (seconds % 60) + 's';
+      } else if (hours > 0) {
+        return hours + 'h ' + (minutes % 60) + 'm ' + (seconds % 60) + 's';
+      } else if (minutes > 0) {
+        return minutes + 'm ' + (seconds % 60) + 's';
+      }
+      return seconds + 's';
+    }
+
+    function refreshData() {
+      fetch('/diag-data')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          document.getElementById('uptime').textContent = formatUptime(data.uptime_ms);
+          document.getElementById('uptimeMs').textContent = data.uptime_ms.toLocaleString();
+          document.getElementById('resetReason').textContent = data.reset_reason;
+          document.getElementById('chipId').textContent = data.chip_id;
+
+          document.getElementById('freeHeap').textContent = data.free_heap.toLocaleString() + ' bytes';
+          var fragEl = document.getElementById('heapFrag');
+          fragEl.textContent = data.heap_fragmentation + '%';
+          fragEl.className = 'status-value ' + (data.heap_fragmentation > 50 ? 'warning' : 'ok');
+
+          var ntpEl = document.getElementById('ntpStatus');
+          ntpEl.textContent = data.ntp_synced ? 'Synchronized' : 'Not Synchronized';
+          ntpEl.className = 'status-value ' + (data.ntp_synced ? 'ok' : 'warning');
+
+          document.getElementById('currentTime').textContent = data.ntp_synced ?
+            new Date(data.unix_time * 1000).toLocaleString() : 'N/A';
+
+          var wifiEl = document.getElementById('wifiState');
+          wifiEl.textContent = data.wifi_state;
+          wifiEl.className = 'status-value ' + (data.wifi_connected ? 'ok' : 'error');
+
+          document.getElementById('rssi').textContent = data.wifi_connected ?
+            data.rssi + ' dBm' : 'N/A';
+          document.getElementById('ipAddr').textContent = data.ip_address;
+
+          var i2cEl = document.getElementById('i2cErrors');
+          i2cEl.textContent = data.i2c_errors;
+          i2cEl.className = 'status-value ' + (data.i2c_errors > 0 ? 'warning' : 'ok');
+        })
+        .catch(function(err) {
+          console.error('Failed to load diagnostics:', err);
+        });
+    }
+
+    refreshData();
+    setInterval(refreshData, 2000);
+  </script>
+</body>
+</html>

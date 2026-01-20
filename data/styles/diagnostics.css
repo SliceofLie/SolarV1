@@ -1,0 +1,67 @@
+/* Diagnostics page styles */
+
+body {
+  padding: 20px;
+}
+
+.diag-container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.status-box {
+  background-color: #2d2d2d;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid #555;
+}
+
+.status-box h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #4CAF50;
+  font-size: 18px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+  padding: 5px 0;
+  color: #fff;
+}
+
+.status-label {
+  font-weight: bold;
+  color: #ddd;
+}
+
+.status-value {
+  color: #4FC3F7;
+}
+
+.status-value.ok {
+  color: #4CAF50;
+}
+
+.status-value.warning {
+  color: #FF9800;
+}
+
+.status-value.error {
+  color: #f44336;
+}
+
+@media (max-width: 600px) {
+  .diag-container {
+    padding: 10px;
+    margin: 10px;
+  }
+
+  .status-row {
+    flex-direction: column;
+    gap: 5px;
+  }
+}

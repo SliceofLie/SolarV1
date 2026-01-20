@@ -4,6 +4,7 @@
 #include "history.h"
 #include "solar_monitor.h"
 #include <LittleFS.h>
+#include <user_interface.h>  // For ESP.getResetInfoPtr()
 
 // Global web server instance
 AsyncWebServer server(80);
@@ -174,6 +175,18 @@ void webServerInit() {
     setPendingRestart();
   });
 
+  // ========== Diagnostics Endpoints ==========
+
+  // Serve diagnostics page from LittleFS
+  server.on("/diagnostics", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/diagnostics.html", "text/html");
+  });
+
+  // Get diagnostics data as JSON
+  server.on("/diag-data", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "application/json", getDiagnosticsJson());
+  });
+
   // Serve static files (CSS, JS) from LittleFS
   server.serveStatic("/styles/", LittleFS, "/styles/").setCacheControl("max-age=86400");
   server.serveStatic("/scripts/", LittleFS, "/scripts/").setCacheControl("max-age=86400");
@@ -238,6 +251,67 @@ String getJsonData() {
     battCopy.busvoltage, battCopy.current, battCopy.power,
     solarV, solarVPlus, solarVMinus, solarC, solarP,
     loadCopy.busvoltage, loadCopy.current, loadCopy.power,
+    i2cErrorCount
+  );
+
+  return String(buffer);
+}
+
+String getResetReasonString(uint32 reason) {
+  switch (reason) {
+    case REASON_DEFAULT_RST:      return "Power On";
+    case REASON_WDT_RST:          return "Hardware Watchdog";
+    case REASON_EXCEPTION_RST:    return "Exception/Crash";
+    case REASON_SOFT_WDT_RST:     return "Software Watchdog";
+    case REASON_SOFT_RESTART:     return "Software Restart";
+    case REASON_DEEP_SLEEP_AWAKE: return "Deep Sleep Wake";
+    case REASON_EXT_SYS_RST:      return "External Reset";
+    default:                      return "Unknown";
+  }
+}
+
+String getDiagnosticsJson() {
+  // Get reset reason
+  rst_info* resetInfo = ESP.getResetInfoPtr();
+  uint32 resetReason = resetInfo->reason;
+
+  // Get memory info
+  uint32_t freeHeap = ESP.getFreeHeap();
+  uint8_t fragmentation = ESP.getHeapFragmentation();
+
+  // Get uptime
+  unsigned long uptimeMs = millis();
+
+  // Build JSON response
+  char buffer[384];
+  snprintf(buffer, sizeof(buffer),
+    "{"
+    "\"uptime_ms\":%lu,"
+    "\"reset_reason\":\"%s\","
+    "\"reset_reason_code\":%u,"
+    "\"chip_id\":\"%08X\","
+    "\"free_heap\":%u,"
+    "\"heap_fragmentation\":%u,"
+    "\"ntp_synced\":%s,"
+    "\"unix_time\":%lld,"
+    "\"wifi_connected\":%s,"
+    "\"wifi_state\":\"%s\","
+    "\"rssi\":%d,"
+    "\"ip_address\":\"%s\","
+    "\"i2c_errors\":%u"
+    "}",
+    uptimeMs,
+    getResetReasonString(resetReason).c_str(),
+    resetReason,
+    ESP.getChipId(),
+    freeHeap,
+    fragmentation,
+    timeSynced ? "true" : "false",
+    (long long)getUnixTime(),
+    wifiConnected ? "true" : "false",
+    getWiFiStatusString().c_str(),
+    getRSSI(),
+    getLocalIP().c_str(),
     i2cErrorCount
   );
 

@@ -298,6 +298,34 @@ void serveHistoryJsonMinute(AsyncWebServerRequest* request) {
       continue;
     }
 
+    // Copy min/max values and validate (fallback to average if invalid)
+    float battVMin = historyMinute[idx].battery.voltageMin;
+    float battVMax = historyMinute[idx].battery.voltageMax;
+    float battCMin = historyMinute[idx].battery.currentMin;
+    float battCMax = historyMinute[idx].battery.currentMax;
+    if (isnan(battVMin) || isinf(battVMin) || battVMin > 1e6) battVMin = battV;
+    if (isnan(battVMax) || isinf(battVMax) || battVMax < -1e6) battVMax = battV;
+    if (isnan(battCMin) || isinf(battCMin) || battCMin > 1e6) battCMin = battC;
+    if (isnan(battCMax) || isinf(battCMax) || battCMax < -1e6) battCMax = battC;
+
+    float solarVMin = historyMinute[idx].solar.voltageMin;
+    float solarVMax = historyMinute[idx].solar.voltageMax;
+    float solarCMin = historyMinute[idx].solar.currentMin;
+    float solarCMax = historyMinute[idx].solar.currentMax;
+    if (isnan(solarVMin) || isinf(solarVMin) || solarVMin > 1e6) solarVMin = solarV;
+    if (isnan(solarVMax) || isinf(solarVMax) || solarVMax < -1e6) solarVMax = solarV;
+    if (isnan(solarCMin) || isinf(solarCMin) || solarCMin > 1e6) solarCMin = solarC;
+    if (isnan(solarCMax) || isinf(solarCMax) || solarCMax < -1e6) solarCMax = solarC;
+
+    float loadVMin = historyMinute[idx].load.voltageMin;
+    float loadVMax = historyMinute[idx].load.voltageMax;
+    float loadCMin = historyMinute[idx].load.currentMin;
+    float loadCMax = historyMinute[idx].load.currentMax;
+    if (isnan(loadVMin) || isinf(loadVMin) || loadVMin > 1e6) loadVMin = loadV;
+    if (isnan(loadVMax) || isinf(loadVMax) || loadVMax < -1e6) loadVMax = loadV;
+    if (isnan(loadCMin) || isinf(loadCMin) || loadCMin > 1e6) loadCMin = loadC;
+    if (isnan(loadCMax) || isinf(loadCMax) || loadCMax < -1e6) loadCMax = loadC;
+
     // Create JSON object for this sample
     JsonObject sample = root.add<JsonObject>();
     sample["t"] = (long long)historyMinute[idx].timestamp;
@@ -305,26 +333,26 @@ void serveHistoryJsonMinute(AsyncWebServerRequest* request) {
     JsonObject battery = sample["bt"].to<JsonObject>();
     battery["v"] = round(battV * 1000.0) / 1000.0;
     battery["i"] = round(battC * 1000.0) / 1000.0;
-    battery["vn"] = round(historyMinute[idx].battery.voltageMin * 1000.0) / 1000.0;
-    battery["vx"] = round(historyMinute[idx].battery.voltageMax * 1000.0) / 1000.0;
-    battery["in"] = round(historyMinute[idx].battery.currentMin * 1000.0) / 1000.0;
-    battery["ix"] = round(historyMinute[idx].battery.currentMax * 1000.0) / 1000.0;
+    battery["vn"] = round(battVMin * 1000.0) / 1000.0;
+    battery["vx"] = round(battVMax * 1000.0) / 1000.0;
+    battery["in"] = round(battCMin * 1000.0) / 1000.0;
+    battery["ix"] = round(battCMax * 1000.0) / 1000.0;
 
     JsonObject solar = sample["pv"].to<JsonObject>();
     solar["v"] = round(solarV * 1000.0) / 1000.0;
     solar["i"] = round(solarC * 1000.0) / 1000.0;
-    solar["vn"] = round(historyMinute[idx].solar.voltageMin * 1000.0) / 1000.0;
-    solar["vx"] = round(historyMinute[idx].solar.voltageMax * 1000.0) / 1000.0;
-    solar["in"] = round(historyMinute[idx].solar.currentMin * 1000.0) / 1000.0;
-    solar["ix"] = round(historyMinute[idx].solar.currentMax * 1000.0) / 1000.0;
+    solar["vn"] = round(solarVMin * 1000.0) / 1000.0;
+    solar["vx"] = round(solarVMax * 1000.0) / 1000.0;
+    solar["in"] = round(solarCMin * 1000.0) / 1000.0;
+    solar["ix"] = round(solarCMax * 1000.0) / 1000.0;
 
     JsonObject load = sample["ld"].to<JsonObject>();
     load["v"] = round(loadV * 1000.0) / 1000.0;
     load["i"] = round(loadC * 1000.0) / 1000.0;
-    load["vn"] = round(historyMinute[idx].load.voltageMin * 1000.0) / 1000.0;
-    load["vx"] = round(historyMinute[idx].load.voltageMax * 1000.0) / 1000.0;
-    load["in"] = round(historyMinute[idx].load.currentMin * 1000.0) / 1000.0;
-    load["ix"] = round(historyMinute[idx].load.currentMax * 1000.0) / 1000.0;
+    load["vn"] = round(loadVMin * 1000.0) / 1000.0;
+    load["vx"] = round(loadVMax * 1000.0) / 1000.0;
+    load["in"] = round(loadCMin * 1000.0) / 1000.0;
+    load["ix"] = round(loadCMax * 1000.0) / 1000.0;
   }
 
   #if DEBUG_HISTORY
@@ -365,6 +393,34 @@ void serveHistoryJsonHourly(AsyncWebServerRequest* request) {
       continue;
     }
 
+    // Copy min/max values and validate (fallback to average if invalid)
+    float battVMin = historyHourly[idx].battery.voltageMin;
+    float battVMax = historyHourly[idx].battery.voltageMax;
+    float battCMin = historyHourly[idx].battery.currentMin;
+    float battCMax = historyHourly[idx].battery.currentMax;
+    if (isnan(battVMin) || isinf(battVMin) || battVMin > 1e6) battVMin = battV;
+    if (isnan(battVMax) || isinf(battVMax) || battVMax < -1e6) battVMax = battV;
+    if (isnan(battCMin) || isinf(battCMin) || battCMin > 1e6) battCMin = battC;
+    if (isnan(battCMax) || isinf(battCMax) || battCMax < -1e6) battCMax = battC;
+
+    float solarVMin = historyHourly[idx].solar.voltageMin;
+    float solarVMax = historyHourly[idx].solar.voltageMax;
+    float solarCMin = historyHourly[idx].solar.currentMin;
+    float solarCMax = historyHourly[idx].solar.currentMax;
+    if (isnan(solarVMin) || isinf(solarVMin) || solarVMin > 1e6) solarVMin = solarV;
+    if (isnan(solarVMax) || isinf(solarVMax) || solarVMax < -1e6) solarVMax = solarV;
+    if (isnan(solarCMin) || isinf(solarCMin) || solarCMin > 1e6) solarCMin = solarC;
+    if (isnan(solarCMax) || isinf(solarCMax) || solarCMax < -1e6) solarCMax = solarC;
+
+    float loadVMin = historyHourly[idx].load.voltageMin;
+    float loadVMax = historyHourly[idx].load.voltageMax;
+    float loadCMin = historyHourly[idx].load.currentMin;
+    float loadCMax = historyHourly[idx].load.currentMax;
+    if (isnan(loadVMin) || isinf(loadVMin) || loadVMin > 1e6) loadVMin = loadV;
+    if (isnan(loadVMax) || isinf(loadVMax) || loadVMax < -1e6) loadVMax = loadV;
+    if (isnan(loadCMin) || isinf(loadCMin) || loadCMin > 1e6) loadCMin = loadC;
+    if (isnan(loadCMax) || isinf(loadCMax) || loadCMax < -1e6) loadCMax = loadC;
+
     // Create JSON object for this sample
     JsonObject sample = root.add<JsonObject>();
     sample["t"] = (long long)historyHourly[idx].timestamp;
@@ -372,26 +428,26 @@ void serveHistoryJsonHourly(AsyncWebServerRequest* request) {
     JsonObject battery = sample["bt"].to<JsonObject>();
     battery["v"] = round(battV * 1000.0) / 1000.0;
     battery["i"] = round(battC * 1000.0) / 1000.0;
-    battery["vn"] = round(historyHourly[idx].battery.voltageMin * 1000.0) / 1000.0;
-    battery["vx"] = round(historyHourly[idx].battery.voltageMax * 1000.0) / 1000.0;
-    battery["in"] = round(historyHourly[idx].battery.currentMin * 1000.0) / 1000.0;
-    battery["ix"] = round(historyHourly[idx].battery.currentMax * 1000.0) / 1000.0;
+    battery["vn"] = round(battVMin * 1000.0) / 1000.0;
+    battery["vx"] = round(battVMax * 1000.0) / 1000.0;
+    battery["in"] = round(battCMin * 1000.0) / 1000.0;
+    battery["ix"] = round(battCMax * 1000.0) / 1000.0;
 
     JsonObject solar = sample["pv"].to<JsonObject>();
     solar["v"] = round(solarV * 1000.0) / 1000.0;
     solar["i"] = round(solarC * 1000.0) / 1000.0;
-    solar["vn"] = round(historyHourly[idx].solar.voltageMin * 1000.0) / 1000.0;
-    solar["vx"] = round(historyHourly[idx].solar.voltageMax * 1000.0) / 1000.0;
-    solar["in"] = round(historyHourly[idx].solar.currentMin * 1000.0) / 1000.0;
-    solar["ix"] = round(historyHourly[idx].solar.currentMax * 1000.0) / 1000.0;
+    solar["vn"] = round(solarVMin * 1000.0) / 1000.0;
+    solar["vx"] = round(solarVMax * 1000.0) / 1000.0;
+    solar["in"] = round(solarCMin * 1000.0) / 1000.0;
+    solar["ix"] = round(solarCMax * 1000.0) / 1000.0;
 
     JsonObject load = sample["ld"].to<JsonObject>();
     load["v"] = round(loadV * 1000.0) / 1000.0;
     load["i"] = round(loadC * 1000.0) / 1000.0;
-    load["vn"] = round(historyHourly[idx].load.voltageMin * 1000.0) / 1000.0;
-    load["vx"] = round(historyHourly[idx].load.voltageMax * 1000.0) / 1000.0;
-    load["in"] = round(historyHourly[idx].load.currentMin * 1000.0) / 1000.0;
-    load["ix"] = round(historyHourly[idx].load.currentMax * 1000.0) / 1000.0;
+    load["vn"] = round(loadVMin * 1000.0) / 1000.0;
+    load["vx"] = round(loadVMax * 1000.0) / 1000.0;
+    load["in"] = round(loadCMin * 1000.0) / 1000.0;
+    load["ix"] = round(loadCMax * 1000.0) / 1000.0;
   }
 
   #if DEBUG_HISTORY
