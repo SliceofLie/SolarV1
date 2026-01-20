@@ -643,14 +643,17 @@ void wifiUpdate() {
       #endif
     }
 
-    // Periodic NTP re-sync every 10 minutes (overflow-safe)
+    // NTP sync retry logic:
+    // - Before first sync: retry every 60 seconds
+    // - After first sync: re-sync every 10 minutes
     static unsigned long nextNtpSync = 0;
     unsigned long now = millis();
     if (now >= nextNtpSync || nextNtpSync == 0) {
-      nextNtpSync = now + NTP_RESYNC_INTERVAL_MS;
+      unsigned long interval = timeSynced ? NTP_RESYNC_INTERVAL_MS : 60000;
+      nextNtpSync = now + interval;
       configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
       #if DEBUG_WIFI
-      Serial.println("NTP re-sync initiated");
+      Serial.printf("NTP %s (next in %lus)\n", timeSynced ? "re-sync" : "sync attempt", interval / 1000);
       #endif
     }
   } else {
