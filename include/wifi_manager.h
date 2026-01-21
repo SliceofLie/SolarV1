@@ -56,10 +56,10 @@ typedef struct {
 } WiFiConfig_t;
 
 // NTP configuration
+// Note: ESP8266 SNTP library handles periodic resyncs automatically once configured
 #define NTP_SERVER1 "pool.ntp.org"
 #define NTP_SERVER2 "time.nist.gov"
 #define NTP_TIMEZONE "EST5EDT,M3.2.0,M11.1.0"  // Eastern Time with automatic DST
-#define NTP_RESYNC_INTERVAL_MS 600000  // Re-sync NTP every 10 minutes
 
 // WiFi and time sync state tracking
 extern bool wifiConnected;
